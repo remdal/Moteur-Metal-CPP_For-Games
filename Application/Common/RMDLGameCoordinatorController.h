@@ -12,4 +12,10 @@
 
 - (void)setEDRBias:(float)edrBias;
 
+- (void)moveCameraX:(float)x Y:(float)y Z:(float)z;
+
+- (void)rotateCameraYaw:(float)yaw Pitch:(float)pitch;
+
+- (void)updateCameraAspectRatio:(float)aspectRatio;
+
 @end

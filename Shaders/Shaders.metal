@@ -1,34 +1,33 @@
 #include <metal_stdlib>
 using namespace metal;
 
-struct VertexIn {
+struct VertexIn
+{
     float3 position [[attribute(0)]];
     float3 color [[attribute(1)]];
 };
 
-struct VertexOut {
+struct VertexOut
+{
     float4 position [[position]];
     float3 color;
 };
 
-struct Uniforms {
+struct Uniforms
+{
     float4x4 modelViewProjectionMatrix;
     float4x4 modelMatrix;
 };
 
-vertex VertexOut vertex_main(VertexIn in [[stage_in]],
-                             constant Uniforms &uniforms [[buffer(1)]]) {
+vertex VertexOut vertex_main(VertexIn in [[stage_in]], constant Uniforms &uniforms [[buffer(1)]])
+{
     VertexOut out;
-    
-    // Transformation de la position
     out.position = uniforms.modelViewProjectionMatrix * float4(in.position, 1.0);
-    
-    // Passer la couleur au fragment shader
     out.color = in.color;
-    
     return out;
 }
 
-fragment float4 fragment_main(VertexOut in [[stage_in]]) {
+fragment float4 fragment_main(VertexOut in [[stage_in]])
+{
     return float4(in.color, 1.0);
 }

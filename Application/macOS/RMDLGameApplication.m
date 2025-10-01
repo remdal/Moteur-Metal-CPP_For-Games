@@ -9,11 +9,12 @@
 @end
 
 @implementation GameWindow
+
 - (void)keyDown:(NSEvent *)event
 {
     NSString *chars = [event charactersIgnoringModifiers];
     unichar character = [chars characterAtIndex:0];
-    float moveSpeed = 0.1f;
+    float moveSpeed = 0.015f;
     switch (character)
     {
         case 'w':
@@ -39,7 +40,7 @@
 
 - (void)mouseDragged:(NSEvent *)event
 {
-    float sensitivity = 0.01f;
+    float sensitivity = 0.004f;
     float deltaX = [event deltaX] * sensitivity;
     float deltaY = [event deltaY] * sensitivity;
     

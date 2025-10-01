@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>engine_metal-cpp</string>
 	<key>CFBundleIdentifier</key>
-	<string>remdal31.engine_metal-cpp</string>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

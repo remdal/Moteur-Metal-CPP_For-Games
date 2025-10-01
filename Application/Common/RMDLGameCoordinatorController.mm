@@ -39,31 +39,20 @@ static void* renderWorker( void* _Nullable obj )
         _metalDisplayLink = [[CAMetalDisplayLink alloc] initWithMetalLayer:_metalLayer];
         _metalDisplayLink.delegate = self;
         _metalDisplayLink.preferredFrameRateRange = CAFrameRateRangeMake(30, 120, 120);
-        
         int res = 0;
         pthread_attr_t attr;
         res = pthread_attr_init( &attr );
         NSAssert( res == 0, @"Unable to initialize thread attributes." );
-        
-        // Opt out of priority decay:
         res = pthread_attr_setschedpolicy( &attr, SCHED_RR );
         NSAssert( res == 0, @"Unable to set thread attribute scheduler policy." );
-        
-        // Increate priority of render thread:
         struct sched_param param = { .sched_priority = 45 };
         res = pthread_attr_setschedparam( &attr, &param );
         NSAssert( res == 0, @"Unable to set thread attribute priority." );
-        
-        // Enable the system to automatically clean up upon thread exit:
         res = pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
         NSAssert( res == 0, @"Unable set set thread attribute to run detached." );
-        
-        // Create thread:
         pthread_t tid;
         res = pthread_create( &tid, &attr, renderWorker, (__bridge void *)_metalDisplayLink );
         NSAssert( res == 0, @"Unable to create render thread" );
-        
-        // Clean up transient objects:
         pthread_attr_destroy( &attr );
     }
     return (self);
@@ -118,19 +107,22 @@ static void* renderWorker( void* _Nullable obj )
     _pGameCoordinator->setEDRBias(edrBias);
 }
 
-- (void)moveCameraX:(float)x Y:(float)y Z:(float)z {
+- (void)moveCameraX:(float)x Y:(float)y Z:(float)z
+{
     if (_pGameCoordinator) {
         _pGameCoordinator->moveCamera(simd::float3{x, y, z});
     }
 }
 
-- (void)rotateCameraYaw:(float)yaw Pitch:(float)pitch {
+- (void)rotateCameraYaw:(float)yaw Pitch:(float)pitch
+{
     if (_pGameCoordinator) {
         _pGameCoordinator->rotateCamera(yaw, pitch);
     }
 }
 
-- (void)updateCameraAspectRatio:(float)aspectRatio {
+- (void)updateCameraAspectRatio:(float)aspectRatio
+{
     if (_pGameCoordinator) {
         _pGameCoordinator->setCameraAspectRatio(aspectRatio);
     }
