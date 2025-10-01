@@ -1,5 +1,6 @@
 #import <Cocoa/Cocoa.h>
-//#import "GameApplication.h"
+
+#import "RMDLGameApplication.h"
 
 int main( int argc, const char * argv[] )
 {
@@ -24,7 +25,7 @@ int main( int argc, const char * argv[] )
     [application.mainMenu addItem:windowsMenuItem];
     application.windowsMenu = windowsMenu;
 
-    //GameApplication* gameApplication = [[GameApplication alloc] init];
-    //application.delegate             = gameApplication;
+    RMDLGameApplication* gameApplication    = [[RMDLGameApplication alloc] init];
+    application.delegate                    = gameApplication;
     return NSApplicationMain(argc, argv);
 }

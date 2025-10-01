@@ -25,16 +25,16 @@ M_FILES		=	$(shell find $(SRCS) -name '*.m')
 HEADERS_H	=	$(shell find $(INCLUDES) -name '*.h')
 HEADERS_HPP	=	$(shell find $(INCLUDES) -name '*.hpp')
 METAL_FILES	=	$(shell find $(SHADERS) -name '*.metal')
-METAL_AIR	=	$(patsubst %.metal,%.air,$(METAL_FILES))
-METAL_METALLIB	=	$(patsubst %.metal,%.metallib,$(METAL_FILES))
-METAL_FLAGS	=	-std=macos-metal2.3
+METAL_AIR	=	$(patsubst $(SHADERS)/%.metal,$(OBJS_DIR)/%.air,$(METAL_FILES))
+METAL_METALLIB	=	$(patsubst $(SHADERS)/%.metal,$(OBJS_DIR)/%.metallib,$(METAL_FILES))
+METAL_FLAGS	=	#-std=macos-metal2.3
 CFLAGS		=	-I./includes -Wall -Wextra -Werror
 OBJS_DIR	=	Product
 DEPS_DIR	=	$(OBJS_DIR)
 PLIST		=	application/macOS/macOSInfo.plist
 ICON		=	Application/macOS/AppIcon.icns
-FLAGS		=	-std=c++20 -ObjC++ -I./includes -I./Shaders -I./Frameworks/metal-cpp -I./Frameworks/metal-cpp-extensions -ferror-limit=10 -fobjc-weak -Warc-bridge-casts-disallowed-in-nonarc#-Wall -Wextra -Werror -fobjc-arc
-LINKERFLAGS	=	-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker $(PLIST)
+FLAGS		=	-std=c++20 -ObjC++ -g -I./includes -I./Shaders -I./Frameworks/metal-cpp -I./Frameworks/metal-cpp-extensions -ferror-limit=10 -fobjc-weak -Warc-bridge-casts-disallowed-in-nonarc#-Wall -Wextra -Werror -fobjc-arc
+#LINKERFLAGS	=	-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker $(PLIST)
 
 CPP_OBJS	=	$(patsubst $(SRCS)/%.cpp,$(OBJS_DIR)/%.o,$(CPP_FILES))
 C_OBJS		=	$(patsubst $(SRCS)/%.c,$(OBJS_DIR)/%.o,$(C_FILES))
@@ -64,18 +64,18 @@ vpath %.c $(SRCS)
 vpath %.mm $(SRCS)
 vpath %.m $(SRCS)
 
-FRAMEWORKS	=	Metal MetalKit QuartzCore AppKit Foundation GameController Cocoa CoreHaptics CoreMotion PHASE AVFAudio MetalFX CoreText CoreGraphics
+FRAMEWORKS	=	Metal MetalKit QuartzCore AppKit Foundation GameController Cocoa CoreHaptics CoreMotion PHASE AVFAudio MetalFX CoreText CoreGraphics CoreVideo
 LDFLAGS		=	$(addprefix -framework , $(FRAMEWORKS))
 MACOS_SDK	=	$(shell xcrun --sdk macosx --show-sdk-path)
 CXXFLAGS	+=	-isysroot $(MACOS_SDK)
 CFLAGS		+=	-isysroot $(MACOS_SDK)
 
-%.air: %.metal
+$(OBJS_DIR)/%.air: $(SHADERS)/%.metal
 	@echo "\t$(_YELLOW) compiling metal... $*.metal$(RESET)"
 	@mkdir -p $(dir $@)
 	xcrun -sdk macosx metal $(METAL_FLAGS) -c $< -o $@
 
-%.metallib: %.air
+$(OBJS_DIR)/%.metallib: $(OBJS_DIR)/%.air
 	@echo "\t$(_YELLOW) creating metallib... $*.metallib$(RESET)"
 	xcrun -sdk macosx metallib $< -o $@
 
@@ -112,7 +112,7 @@ $(DEPS_DIR)/%.d: $(SRCS_DIR)/%.m | $(DEPS_DIR)
 	@ echo "\t$(_YELLOW) compiling... $*.d$(RESET)"
 	$(CC) $(FLAGS) -MM $< -MT $(@:.d=.o) -MF $@
 
-all: init	$(NAME)
+all: init	$(APP_NAME)
 
 init:
 	@ if test -f $(NAME); \
@@ -122,13 +122,18 @@ init:
 		$(shell mkdir -p $(sort $(dir $(CPP_OBJS))) $(sort $(dir $(C_OBJS))) $(sort $(dir $(MM_OBJS))))	\
 	fi
 
-$(APP_NAME): $(NAME)
+$(APP_NAME): $(NAME) #$(ICON)
 	@echo "\t$(CYAN)[Creating application bundle]$(RESET)"
 	@mkdir -p $(APP_MACOS) $(APP_RESOURCES)
 	@cp $(NAME) $(APP_MACOS)/
-	@cp $(PLIST) $(APP_CONTENTS)/macOSInfo.plist
+	@cp $(PLIST) $(APP_CONTENTS)/Info.plist
 	@if [ -f $(ICON) ]; then cp $(ICON) $(APP_RESOURCES)/AppIcon.icns; fi
-	@cp $(METAL_METALLIB) $(APP_RESOURCES)/ 2>/dev/null || true
+	@for metallib in $(METAL_METALLIB); do \
+		if [ -f $$metallib ]; then \
+			cp $$metallib $(APP_RESOURCES)/; \
+			echo "\t$(GREEN)Metallib copied: $$metallib$(RESET)"; \
+		fi \
+	done
 	@echo "\t$(GREEN)Application bundle created: $(APP_NAME)$(RESET)"
 
 $(NAME):	$(C_OBJS) $(CPP_OBJS) $(MM_OBJS) $(M_OBJS) $(METAL_METALLIB)

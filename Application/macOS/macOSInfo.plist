@@ -5,15 +5,13 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>fr</string>
 	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIconFile</key>
-	<string>Icon.png</string>
+	<string>engine_metal-cpp</string>
 	<key>CFBundleIdentifier</key>
 	<string>remdal31.engine_metal-cpp</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>engine_metal-cpp</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleSupportedPlatforms</key>
@@ -36,5 +34,7 @@
 	</array>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon.icns</string>
 </dict>
 </plist>
