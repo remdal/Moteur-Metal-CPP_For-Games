@@ -5,7 +5,9 @@
 #import "RMDLGameApplication.h"
 
 @interface GameWindow : NSWindow
+
 @property (strong) RMDLGameCoordinatorController* gameCoordinator;
+
 @end
 
 @implementation GameWindow
@@ -14,7 +16,7 @@
 {
     NSString *chars = [event charactersIgnoringModifiers];
     unichar character = [chars characterAtIndex:0];
-    float moveSpeed = 0.015f;
+    float moveSpeed = 0.065f;
     switch (character)
     {
         case 'w':
@@ -40,11 +42,15 @@
 
 - (void)mouseDragged:(NSEvent *)event
 {
-    float sensitivity = 0.004f;
+    float sensitivity = 0.009f;
     float deltaX = [event deltaX] * sensitivity;
     float deltaY = [event deltaY] * sensitivity;
     
     [self.gameCoordinator rotateCameraYaw:deltaX Pitch:deltaY];
+}
+
+- (void)mouseDown:(NSEvent *)event
+{
 }
 
 @end
@@ -99,7 +105,7 @@
     _metalLayer.opaque = YES;
     _metalLayer.framebufferOnly = YES;
     _metalLayer.contentsGravity = kCAGravityResizeAspect;
-    _metalLayer.backgroundColor = CGColorGetConstantColor(kCGColorBlack);
+    _metalLayer.backgroundColor = CGColorGetConstantColor(kCGColorWhite);
     _metalLayer.pixelFormat = MTLPixelFormatRGBA16Float;
     _metalLayer.wantsExtendedDynamicRangeContent = YES;
     _metalLayer.colorspace = CGColorSpaceCreateWithName(kCGColorSpaceExtendedLinearDisplayP3);

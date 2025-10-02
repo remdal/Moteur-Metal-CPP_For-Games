@@ -65,15 +65,66 @@ struct Frustum
 
 struct RMDLObjVertex
 {
-    simd::float3        position;
-    simd::float3        normal;
-    simd::float3        color;
-    bool operator == (const RMDLObjVertex& o) const
-    {
-        return (simd::all (o.position == position) &&
-        simd::all (o.normal == normal) &&
-        simd::all (o.color == color));
-    }
+    simd::float3    position;
+    simd::float3    normal;
+    simd::float3    color;
+//    bool operator == (const RMDLObjVertex& o) const
+//    {
+//        return (simd::all (o.position == position) &&
+//        simd::all (o.normal == normal) &&
+//        simd::all (o.color == color));
+//    }
+};
+
+typedef enum VertexAttributes
+{
+    VertexAttributePosition  = 0,
+    VertexAttributeTexcoord  = 1,
+    VertexAttributeNormal    = 2,
+    VertexAttributeTangent   = 3,
+    VertexAttributeBitangent = 4
+}   VertexAttributes;
+
+typedef enum BufferIndex
+{
+    BufferIndexMeshPositions     = 0,
+    BufferIndexMeshGenerics      = 1,
+    BufferIndexFrameData         = 2,
+    BufferIndexLightsData        = 3,
+    BufferIndexLightsPosition    = 4,
+    BufferIndexFlatColor         = 0,
+    BufferIndexDepthRange        = 0,
+}   BufferIndex;
+
+typedef enum TextureIndex
+{
+    TextureIndexBaseColor = 0,
+    TextureIndexSpecular  = 1,
+    TextureIndexNormal    = 2,
+    TextureIndexShadow    = 3,
+    TextureIndexAlpha     = 4,
+    NumMeshTextures = TextureIndexNormal + 1
+}   TextureIndex;
+
+struct FrameData
+{
+    simd::float4x4 projection_matrix;
+    simd::float4x4 projection_matrix_inverse;
+    simd::float4x4 view_matrix;
+    unsigned int framebuffer_width;
+    unsigned int framebuffer_height;
+    simd::float4x4 temple_modelview_matrix;
+    simd::float4x4 temple_model_matrix;
+    simd::float3x3 temple_normal_matrix;
+    float shininess_factor;
+    float fairy_size;
+    float fairy_specular_intensity;
+    simd::float4x4 sky_modelview_matrix;
+    simd::float4x4 shadow_mvp_matrix;
+    simd::float4x4 shadow_mvp_xform_matrix;
+    simd::float4 sun_eye_direction;
+    simd::float4 sun_color;
+    float sun_specular_intensity;
 };
 
 #endif /* RMDLMAIN_RENDERER_SHARED_H */

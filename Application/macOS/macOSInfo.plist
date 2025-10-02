@@ -33,7 +33,7 @@
 		<string>metal</string>
 	</array>
 	<key>NSHumanReadableCopyright</key>
-	<string></string>
+	<string>Copyright © 2025 Laboitederemdal. All rights reserved.</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon.icns</string>
 </dict>

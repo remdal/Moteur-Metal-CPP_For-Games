@@ -11,6 +11,9 @@
 
 #include <../includes/NonCopyable.h>
 #include <../../Renderer/RMDLCamera.hpp>
+#include "RMDLMesh.hpp"
+
+constexpr uint8_t MaxFramesInFlight = 3;
 
 class GameCoordinator : public NonCopyable
 {
@@ -57,7 +60,6 @@ private:
     MTL::PixelFormat                    _layerPixelFormat;
     MTL::Device*                        _pDevice;
     MTL::CommandQueue*                  _pCommandQueue;
-    // Animation data:
     int _frame;
 
     float          _maxEDRValue;
@@ -76,6 +78,15 @@ private:
     float _rotationAngle;
     void buildCubeBuffers();
     void setupCamera();
+    void loadMetal();
+    void drawSky( MTL::RenderCommandEncoder* pRenderEncoder );
+    
+    MTL::RenderPipelineState* m_pSkyboxPipelineState;
+    MTL::Texture* m_pSkyMap;
+    MTL::VertexDescriptor* m_pSkyVertexDescriptor;
+    Mesh m_skyMesh;
+    int8_t m_frameDataBufferIndex;
+    MTL::Buffer* m_frameDataBuffers[MaxFramesInFlight];
 };
 
 #endif /* RMDLGAMECOORDINATOR_HPP */

@@ -33,7 +33,7 @@ OBJS_DIR	=	Product
 DEPS_DIR	=	$(OBJS_DIR)
 PLIST		=	application/macOS/macOSInfo.plist
 ICON		=	Application/macOS/AppIcon.icns
-FLAGS		=	-std=c++20 -ObjC++ -g -I./includes -I./Shaders -I./Frameworks/metal-cpp -I./Frameworks/metal-cpp-extensions -ferror-limit=10 -fobjc-weak -Warc-bridge-casts-disallowed-in-nonarc#-Wall -Wextra -Werror -fobjc-arc
+FLAGS		=	-std=c++20 -ObjC++ -g -I./includes -I./Shaders -I./Frameworks/metal-cpp -I./Frameworks/metal-cpp-extensions -ferror-limit=10 -fobjc-weak -Warc-bridge-casts-disallowed-in-nonarc -Wobjc-missing-super-calls#-Wall -Wextra -Werror -fobjc-arc
 #LINKERFLAGS	=	-Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker $(PLIST)
 
 CPP_OBJS	=	$(patsubst $(SRCS)/%.cpp,$(OBJS_DIR)/%.o,$(CPP_FILES))
@@ -58,13 +58,51 @@ RESET		=	\033[0m
 CURSIVE     =	\033[33;3m
 GRAY        =	\033[33;2;37m
 
+BOLDBLACK	=	\033[1;30m
+BOLDRED		=	\033[1;31m
+BOLDGREEN	=	\033[1;32m
+BOLDYELLOW	=	\033[1;33m
+BOLDBLUE	=	\033[1;34m
+BOLDPURPLE	=	\033[1;35m
+BOLDCYAN	=	\033[1;36m
+BOLDWHITE	=	\033[1;37m
+
+HIBLACK		=	\033[0;90m
+HIRED		=	\033[0;91m
+HIGREEN		=	\033[0;92m
+HIYELLOW	=	\033[0;93m
+HIBLUE		=	\033[0;94m
+HIPURPLE	=	\033[0;95m
+HICYAN		=	\033[0;96m
+HIWHITE		=	\033[0;97m
+
+UBLACK		=	\033[4;30m
+URED		=	\033[4;31m
+UGREEN		=	\033[4;32m
+UYELLOW		=	\033[4;33m
+UBLUE		=	\033[4;34m
+UPURPLE		=	\033[4;35m
+UCYAN		=	\033[4;36m
+UWHITE		=	\033[4;37m
+
+BBLACK		=	\033[40m
+BRED		=	\033[41m
+BGREEN		=	\033[42m
+BYELLOW		=	\033[43m
+BBLUE		=	\033[44m
+BPURPLE		=	\033[45m
+BCYAN		=	\033[46m
+BWHITE		=	\033[47m
+
+SOULIGNAGE	=	\033[4'm
+
 VPATH=./metal-cpp
 vpath %.cpp $(SRCS)
 vpath %.c $(SRCS)
 vpath %.mm $(SRCS)
 vpath %.m $(SRCS)
 
-FRAMEWORKS	=	Metal MetalKit QuartzCore AppKit Foundation GameController Cocoa CoreHaptics CoreMotion PHASE AVFAudio MetalFX CoreText CoreGraphics CoreVideo
+FRAMEWORKS	=	Metal MetalKit QuartzCore AppKit Foundation GameController Cocoa CoreHaptics CoreMotion PHASE AVFAudio MetalFX CoreText CoreGraphics CoreVideo ModelIO
 LDFLAGS		=	$(addprefix -framework , $(FRAMEWORKS))
 MACOS_SDK	=	$(shell xcrun --sdk macosx --show-sdk-path)
 CXXFLAGS	+=	-isysroot $(MACOS_SDK)
@@ -118,7 +156,7 @@ init:
 	@ if test -f $(NAME); \
 		then echo "$(CYAN)\t[program already created]$(RESET)";	\
 		else \
-		echo "$(_YELLOW)\t[Initialize program]$(RESET)"; \
+		echo "\t$(BPURPLE)[Initialize program]$(RESET)"; \
 		$(shell mkdir -p $(sort $(dir $(CPP_OBJS))) $(sort $(dir $(C_OBJS))) $(sort $(dir $(MM_OBJS))))	\
 	fi
 
@@ -131,10 +169,10 @@ $(APP_NAME): $(NAME) #$(ICON)
 	@for metallib in $(METAL_METALLIB); do \
 		if [ -f $$metallib ]; then \
 			cp $$metallib $(APP_RESOURCES)/; \
-			echo "\t$(GREEN)Metallib copied: $$metallib$(RESET)"; \
+			echo "\t$(HIWHITE)Metallib copied: $$metallib$(RESET)"; \
 		fi \
 	done
-	@echo "\t$(GREEN)Application bundle created: $(APP_NAME)$(RESET)"
+	@echo "\t$(SOULIGNAGE)Application bundle created: $(APP_NAME)$(RESET)"
 
 $(NAME):	$(C_OBJS) $(CPP_OBJS) $(MM_OBJS) $(M_OBJS) $(METAL_METALLIB)
 	@echo "\t$(CYAN)[Creating program]$(RESET)"
@@ -148,7 +186,7 @@ clean:
 	rm -rf $(OBJS_DIR) Shaders/*.air Shaders/*.metallib $(APP_NAME)
 
 fclean:	clean
-	@printf "$(RED)[cleaning up .out, objects & library files]$(_NC)\n\033[31mDeleting EVERYTHING! ⌐(ಠ۾ಠ)¬\n"
+	@printf "$(RED)[cleaning up .out, objects & library files]$(_NC)\n$(URED)Deleting EVERYTHING! ⌐(ಠ۾ಠ)¬$(RESET)$(BOLDRED)$(RESET)\n"
 	rm -f $(NAME)
 
 re:		fclean all
