@@ -35,10 +35,9 @@ static void* renderWorker( void* _Nullable obj )
                                                                 _metalLayer.drawableSize.height,
                                                                 gameUICanvasSize,
                                                                 shaderPath.UTF8String);
-        
         _metalDisplayLink = [[CAMetalDisplayLink alloc] initWithMetalLayer:_metalLayer];
         _metalDisplayLink.delegate = self;
-        _metalDisplayLink.preferredFrameRateRange = CAFrameRateRangeMake(30, 120, 120);
+        _metalDisplayLink.preferredFrameRateRange = CAFrameRateRangeMake(30, 120, 60);
         int res = 0;
         pthread_attr_t attr;
         res = pthread_attr_init( &attr );

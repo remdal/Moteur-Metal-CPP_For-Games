@@ -127,6 +127,14 @@ struct FrameData
     float sun_specular_intensity;
 };
 
+typedef enum RenderTargetIndex
+{
+    RenderTargetLighting  = 0,
+    RenderTargetAlbedo    = 1,
+    RenderTargetNormal    = 2,
+    RenderTargetDepth     = 3
+}   RenderTargetIndex;
+
 #endif /* RMDLMAIN_RENDERER_SHARED_H */
 
 /* v = sommet, vt = coordonnée de texture, vn = normale, f = face, o = nom de l'objet, g = nom du groupe, s = numéro du groupe?, l = ligne d'élément,

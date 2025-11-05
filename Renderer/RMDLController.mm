@@ -1,6 +1,6 @@
 #include "RMDLController.h"
 
-typedef NS_OPTIONS(uint8_t, Controls)
+typedef NS_OPTIONS(uint8_t, Controls) // QWERTY
 {
     // Keycodes that control translation
     controlsForward     = 0x0d, // W key
@@ -26,6 +26,7 @@ typedef NS_OPTIONS(uint8_t, Controls)
     controlsFast        = 0x80, // + vite
     controlsSlow        = 0x81, // - vite
 
+    // AZERTY
     inventory           = 0x0f  // R Key
 };
 

@@ -4,6 +4,8 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import <CoreText/CoreText.h>
 
+#include <stdio.h>
+
 MTL::Texture* newTextureFromFile( const std::string& texturePath, MTL::Device* pDevice )
 {
     NSURL* url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:texturePath.c_str()]];
@@ -23,9 +25,9 @@ MTL::Texture* newTextureFromFile( const std::string& texturePath, MTL::Device* p
     }
     assert(texture);
     
-    return (__bridge_retained MTL::Texture *)texture; // transfer ownership to metal-cpp
+    return (__bridge_retained MTL::Texture *)texture;
 }
-#include <stdio.h>
+
 MTL::Texture* newTextureArrayFromFiles(const std::vector<std::string>& texturePaths, MTL::Device* pDevice, MTL::CommandBuffer* pCommandBuffer)
 {
     std::vector<NS::SharedPtr<MTL::Texture>> textures;
@@ -85,9 +87,7 @@ CGRect calculateReferenceBounds(char c, CTFontRef font, CGColorRef color, CGCont
 FontAtlas newFontAtlas(MTL::Device* pDevice)
 {
     FontAtlas fontAtlas;
-    
-    // Render font atlas into a Core Graphics context:
-    
+
     const uint32_t bitmapW = 1024;
     const uint32_t bitmapH = 1024;
     const uint32_t bitmapChannels = 4;

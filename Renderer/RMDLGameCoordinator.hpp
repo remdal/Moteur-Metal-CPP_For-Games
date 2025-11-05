@@ -14,6 +14,7 @@
 #include "RMDLMesh.hpp"
 
 constexpr uint8_t MaxFramesInFlight = 3;
+static const uint32_t NumLights = 256;
 
 class GameCoordinator : public NonCopyable
 {
@@ -75,11 +76,26 @@ private:
     MTL::Buffer* _pUniformBuffer;
     MTL::RenderPipelineState* _pCubePipelineState;
     MTL::DepthStencilState* _pDepthState;
+    MTL::PixelFormat m_albedo_specular_GBufferFormat;
+    MTL::PixelFormat m_normal_shadow_GBufferFormat;
+    MTL::PixelFormat m_depth_GBufferFormat;
+    MTL::Texture* m_albedo_specular_GBuffer;
+    MTL::Texture* m_normal_shadow_GBuffer;
+    MTL::Texture* m_depth_GBuffer;
     float _rotationAngle;
     void buildCubeBuffers();
     void setupCamera();
     void loadMetal();
-    void drawSky( MTL::RenderCommandEncoder* pRenderEncoder );
+    //void drawSky( MTL::RenderCommandEncoder* pRenderEncoder );
+    //void updateWorldState( bool isPaused );
+    MTL::Texture* currentDrawableTexture( MTL::Drawable* pCurrentDrawable );
+    MTL::CommandBuffer* beginDrawableCommands();
+    uint64_t m_frameNumber;
+    simd::float4x4 m_projection_matrix;
+    MTL::CommandQueue* m_pCommandQueue;
+    dispatch_semaphore_t m_inFlightSemaphore;
+    MTL::PixelFormat *conv;
+    MTL::Texture* m_pDepthTexture;
     
     MTL::RenderPipelineState* m_pSkyboxPipelineState;
     MTL::Texture* m_pSkyMap;
@@ -87,6 +103,8 @@ private:
     Mesh m_skyMesh;
     int8_t m_frameDataBufferIndex;
     MTL::Buffer* m_frameDataBuffers[MaxFramesInFlight];
+    MTL::Buffer* m_lightPositions[MaxFramesInFlight];
+    MTL::VertexDescriptor* m_pDefaultVertexDescriptor;
 };
 
 #endif /* RMDLGAMECOORDINATOR_HPP */

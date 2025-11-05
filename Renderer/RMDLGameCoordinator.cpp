@@ -21,6 +21,7 @@
 #include <stdlib.h>
 
 #include "RMDLGameCoordinator.hpp"
+#include "RMDLMathUtils.hpp"
 #include "RMDLUtilities.h"
 
 #define NUM_ELEMS(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -84,6 +85,11 @@ GameCoordinator::GameCoordinator(MTL::Device* pDevice,
     , _pDepthState(nullptr)
     , _rotationAngle(0.0f)
     , m_frameDataBufferIndex(0)
+    , m_frameNumber(0)
+    , m_pSkyboxPipelineState(nullptr)
+    , m_pSkyMap(nullptr)
+    , m_pSkyVertexDescriptor(nullptr)
+    , m_pDepthTexture(nullptr)
 {
     printf("GameCoordinator constructor called\n");
     unsigned int numThreads = std::thread::hardware_concurrency();
@@ -109,11 +115,17 @@ GameCoordinator::~GameCoordinator()
     _pCommandQueue->release();
     m_pSkyboxPipelineState->release();
     m_pSkyVertexDescriptor->release();
-    _pDevice->release();
+    if (m_pSkyMap) m_pSkyMap->release();
     for(uint8_t i = 0; i < MaxFramesInFlight; i++)
     {
         m_frameDataBuffers[i]->release();
+        if (m_lightPositions[i]) m_lightPositions[i]->release();
     }
+    if (m_inFlightSemaphore)
+    {
+        dispatch_release(m_inFlightSemaphore);
+    }
+    _pDevice->release();
 }
 
 void GameCoordinator::loadMetal()
@@ -127,9 +139,49 @@ void GameCoordinator::loadMetal()
         static const MTL::ResourceOptions storageMode = MTL::ResourceStorageModeShared;
         m_frameDataBuffers[i] = _pDevice->newBuffer(sizeof(FrameData), storageMode);
         m_frameDataBuffers[i]->setLabel( AAPLSTR( "FrameData" ) );
+        m_lightPositions[i] = _pDevice->newBuffer(sizeof(simd::float4)*NumLights, storageMode);
+        m_frameDataBuffers[i]->setLabel( AAPLSTR( "LightPositions" ) );
     }
-
     MTL::Library* pShaderLibrary = _pDevice->newDefaultLibrary();
+    // Positions.
+    m_pDefaultVertexDescriptor = MTL::VertexDescriptor::alloc()->init();
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributePosition)->setFormat( MTL::VertexFormatFloat3 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributePosition)->setOffset( 0 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributePosition)->setBufferIndex( BufferIndexMeshPositions );
+
+    // Texture coordinates.
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeTexcoord)->setFormat( MTL::VertexFormatFloat2 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeTexcoord)->setOffset( 0 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeTexcoord)->setBufferIndex( BufferIndexMeshGenerics );
+
+    // Normals.
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeNormal)->setFormat( MTL::VertexFormatHalf4 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeNormal)->setOffset( 8 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeNormal)->setBufferIndex( BufferIndexMeshGenerics );
+
+    // Tangents
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeTangent)->setFormat( MTL::VertexFormatHalf4 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeTangent)->setOffset( 16 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeTangent)->setBufferIndex( BufferIndexMeshGenerics );
+
+    // Bitangents
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeBitangent)->setFormat( MTL::VertexFormatHalf4 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeBitangent)->setOffset( 24 );
+    m_pDefaultVertexDescriptor->attributes()->object(VertexAttributeBitangent)->setBufferIndex( BufferIndexMeshGenerics );
+
+    // Position Buffer Layout
+    m_pDefaultVertexDescriptor->layouts()->object(BufferIndexMeshPositions)->setStride( 12 );
+    m_pDefaultVertexDescriptor->layouts()->object(BufferIndexMeshPositions)->setStepRate( 1 );
+    m_pDefaultVertexDescriptor->layouts()->object(BufferIndexMeshPositions)->setStepFunction( MTL::VertexStepFunctionPerVertex );
+
+    // Generic Attribute Buffer Layout
+    m_pDefaultVertexDescriptor->layouts()->object(BufferIndexMeshGenerics)->setStride( 32 );
+    m_pDefaultVertexDescriptor->layouts()->object(BufferIndexMeshGenerics)->setStepRate( 1 );
+    m_pDefaultVertexDescriptor->layouts()->object(BufferIndexMeshGenerics)->setStepFunction( MTL::VertexStepFunctionPerVertex );
+    
+    m_albedo_specular_GBufferFormat = MTL::PixelFormatRGBA8Unorm_sRGB;
+    m_normal_shadow_GBufferFormat   = MTL::PixelFormatRGBA8Snorm;
+    m_depth_GBufferFormat           = MTL::PixelFormatR32Float;
     #pragma mark Sky render pipeline setup
     {
         m_pSkyVertexDescriptor = MTL::VertexDescriptor::alloc()->init();
@@ -156,6 +208,10 @@ void GameCoordinator::loadMetal()
         pRenderPipelineDescriptor->setVertexDescriptor( m_pSkyVertexDescriptor );
         pRenderPipelineDescriptor->setVertexFunction( pSkyboxVertexFunction );
         pRenderPipelineDescriptor->setFragmentFunction( pSkyboxFragmentFunction );
+        pRenderPipelineDescriptor->colorAttachments()->object(RenderTargetLighting)->setPixelFormat( MTL::PixelFormatBGRA8Unorm_sRGB );
+        pRenderPipelineDescriptor->colorAttachments()->object(RenderTargetAlbedo)->setPixelFormat( MTL::PixelFormatRGBA8Unorm_sRGB );
+        pRenderPipelineDescriptor->colorAttachments()->object(RenderTargetNormal)->setPixelFormat( MTL::PixelFormatRGBA8Snorm );
+        pRenderPipelineDescriptor->colorAttachments()->object(RenderTargetDepth)->setPixelFormat( MTL::PixelFormatRGBA16Float );
         pRenderPipelineDescriptor->setDepthAttachmentPixelFormat( MTL::PixelFormat::PixelFormatDepth32Float_Stencil8 );
         pRenderPipelineDescriptor->setStencilAttachmentPixelFormat( MTL::PixelFormat::PixelFormatDepth32Float_Stencil8 );
         m_pSkyboxPipelineState = _pDevice->newRenderPipelineState( pRenderPipelineDescriptor, &pError );
@@ -167,47 +223,160 @@ void GameCoordinator::loadMetal()
     {
         m_skyMesh = makeSphereMesh(_pDevice, *m_pSkyVertexDescriptor, 20, 20, 150.0 );
     }
+    {
+        m_pSkyMap = newTextureFromCatalog( _pDevice, "SkyMap", MTL::StorageModePrivate, MTL::TextureUsageShaderRead );
+    }
 }
 
-void GameCoordinator::drawSky( MTL::RenderCommandEncoder* pRenderEncoder )
+//void GameCoordinator::drawSky( MTL::RenderCommandEncoder* pRenderEncoder )
+//{
+//    pRenderEncoder->pushDebugGroup( AAPLSTR( "Draw Sky" ) );
+//    pRenderEncoder->setRenderPipelineState( m_pSkyboxPipelineState );
+//    pRenderEncoder->setCullMode( MTL::CullModeFront ); // CullModeFront
+//    pRenderEncoder->setVertexBuffer( m_frameDataBuffers[m_frameDataBufferIndex], 0, BufferIndexFrameData );
+//    pRenderEncoder->setFragmentTexture( m_pSkyMap, TextureIndexBaseColor );
+//    for (auto& meshBuffer : m_skyMesh.vertexBuffers())
+//    {
+//        pRenderEncoder->setVertexBuffer(meshBuffer.buffer(),
+//                                        meshBuffer.offset(),
+//                                        meshBuffer.argumentIndex());
+//    }
+//
+//
+//    for (auto& submesh : m_skyMesh.submeshes())
+//    {
+//        pRenderEncoder->drawIndexedPrimitives(submesh.primitiveType(),
+//                                              submesh.indexCount(),
+//                                              submesh.indexType(),
+//                                              submesh.indexBuffer().buffer(),
+//                                              submesh.indexBuffer().offset() );
+//    }
+//    pRenderEncoder->popDebugGroup();
+//}
+
+//void GameCoordinator::updateWorldState( bool isPaused )
+//{
+//    if(!isPaused)
+//    {
+//        m_frameNumber++;
+//    }
+//    m_frameDataBufferIndex = (m_frameDataBufferIndex+1) % MaxFramesInFlight;
+//
+//    FrameData *frameData = (FrameData *) (m_frameDataBuffers[m_frameDataBufferIndex]->contents());
+//
+//    // Set projection matrix and calculate inverted projection matrix
+//    frameData->projection_matrix = m_projection_matrix;
+//    frameData->projection_matrix_inverse = matrix_invert(m_projection_matrix);
+//
+//    frameData->framebuffer_width = (uint)m_albedo_specular_GBuffer->width();
+//    frameData->framebuffer_height = (uint)m_albedo_specular_GBuffer->height();
+//
+//    frameData->shininess_factor = 1;
+//    frameData->fairy_specular_intensity = 32;
+//
+//    float cameraRotationRadians = m_frameNumber * 0.0025f + M_PI;
+//
+//    simd::float3 cameraRotationAxis = {0, 1, 0};
+//    simd::float4x4 cameraRotationMatrix = matrix4x4_rotation(cameraRotationRadians, cameraRotationAxis);
+//
+//    simd::float4x4 view_matrix = matrix_look_at_left_hand(0,  18, -50,
+//                                                    0,   5,   0,
+//                                                    0 ,  1,   0);
+//
+//    view_matrix = view_matrix * cameraRotationMatrix;
+//
+//    frameData->view_matrix = view_matrix;
+//
+//
+//    float skyRotation = m_frameNumber * 0.005f - (M_PI_4 * 3);
+//
+//    simd::float3 skyRotationAxis = {0, 1, 0};
+//    simd::float4x4 skyModelMatrix = matrix4x4_rotation(skyRotation, skyRotationAxis);
+//    frameData->sky_modelview_matrix = cameraRotationMatrix * skyModelMatrix;
+//
+//    // Update directional light color
+//    simd::float4 sun_color = {0.5, 0.5, 0.5, 1.0};
+//    frameData->sun_color = sun_color;
+//    frameData->sun_specular_intensity = 1;
+//
+//    // Update sun direction in view space
+//    simd::float4 sunModelPosition = {-0.25, -0.5, 1.0, 0.0};
+//
+//    simd::float4 sunWorldPosition = skyModelMatrix * sunModelPosition;
+//
+//    simd::float4 sunWorldDirection = -sunWorldPosition;
+//
+//    frameData->sun_eye_direction = view_matrix * sunWorldDirection;
+//
+//    {
+//        simd::float4 directionalLightUpVector = {0.0, 1.0, 1.0, 1.0};
+//
+//        directionalLightUpVector = skyModelMatrix * directionalLightUpVector;
+//        directionalLightUpVector.xyz = simd::normalize(directionalLightUpVector.xyz);
+//    }
+//
+//    {
+//        // When calculating texture coordinates to sample from shadow map, flip the y/t coordinate and
+//        // convert from the [-1, 1] range of clip coordinates to [0, 1] range of
+//        // used for texture sampling
+//        simd::float4x4 shadowScale = matrix4x4_scale(0.5f, -0.5f, 1.0);
+//        simd::float4x4 shadowTranslate = matrix4x4_translation(0.5, 0.5, 0);
+//        simd::float4x4 shadowTransform = shadowTranslate * shadowScale;
+//    }
+//
+//    frameData->fairy_size = .4;
+//}
+
+// Get a drawable from the view (or hand back an offscreen drawable for buffer examination mode)
+MTL::Texture* GameCoordinator::currentDrawableTexture( MTL::Drawable* pCurrentDrawable )
 {
-    pRenderEncoder->pushDebugGroup( AAPLSTR( "Draw Sky" ) );
-    pRenderEncoder->setRenderPipelineState( m_pSkyboxPipelineState );
-    pRenderEncoder->setCullMode( MTL::CullModeFront );
-    pRenderEncoder->setVertexBuffer( m_frameDataBuffers[m_frameDataBufferIndex], 0, BufferIndexFrameData );
-    pRenderEncoder->setFragmentTexture( m_pSkyMap, TextureIndexBaseColor );
-    for (auto& meshBuffer : m_skyMesh.vertexBuffers())
+#if SUPPORT_BUFFER_EXAMINATION
+    if(m_bufferExaminationManager->mode())
     {
-        pRenderEncoder->setVertexBuffer(meshBuffer.buffer(),
-                                        meshBuffer.offset(),
-                                        meshBuffer.argumentIndex());
+        return m_bufferExaminationManager->offscreenDrawable();
+    }
+#endif // SUPPORT_BUFFER_EXAMINATION
+
+    if(pCurrentDrawable)
+    {
+        auto pMtlDrawable = static_cast< CA::MetalDrawable* >(pCurrentDrawable);
+        return pMtlDrawable->texture();
     }
 
+    return nullptr;
+}
 
-    for (auto& submesh : m_skyMesh.submeshes())
-    {
-        pRenderEncoder->drawIndexedPrimitives(submesh.primitiveType(),
-                                              submesh.indexCount(),
-                                              submesh.indexType(),
-                                              submesh.indexBuffer().buffer(),
-                                              submesh.indexBuffer().offset() );
-    }
-    pRenderEncoder->popDebugGroup();
+MTL::CommandBuffer* GameCoordinator::beginDrawableCommands()
+{
+    MTL::CommandBuffer* pCommandBuffer = m_pCommandQueue->commandBuffer();
+
+    // Create a completed handler functor for Metal to execute when the GPU has fully finished
+    // processing the commands encoded for this frame. This implenentation of the completed
+    // handler signals the `m_inFlightSemaphore`, which indicates that the GPU is no longer
+    // accessing the the dynamic buffer written to this frame. When the GPU no longer accesses the
+    // buffer, the renderer can safely overwrite the buffer's contents with data for a future frame.
+
+    pCommandBuffer->addCompletedHandler(MTL::HandlerFunction([this]( MTL::CommandBuffer* ){
+        dispatch_semaphore_signal( m_inFlightSemaphore );
+    }));
+
+    return pCommandBuffer;
 }
 
 void GameCoordinator::setupCamera()
 {
-    // Configurer une caméra perspective
     _camera.initPerspectiveWithPosition(
-        {0.0f, 0.0f, 5.0f},  // position
-        {0.0f, 0.0f, -1.0f}, // direction
-        {0.0f, 1.0f, 0.0f},  // up
-        M_PI / 3.0f,         // viewAngle (60 degrés - 3.0f)
-        1.0f,                // aspectRatio
-        0.1f,                // nearPlane
-        100.0f               // farPlane
+        {0.0f, 0.0f, 5.0f},
+        {0.0f, 0.0f, -1.0f},
+        {0.0f, 1.0f, 0.0f},
+        M_PI / 3.0f,
+        1.0f,
+        0.1f,
+        100.0f
     );
 }
+
+
 
 void GameCoordinator::buildCubeBuffers()
 {
@@ -232,7 +401,7 @@ void GameCoordinator::buildRenderPipelines(const std::string& shaderSearchPath)
     MTL::RenderPipelineDescriptor* pDesc = MTL::RenderPipelineDescriptor::alloc()->init();
     pDesc->setVertexFunction(pVertexFn);
     pDesc->setFragmentFunction(pFragmentFn);
-    pDesc->colorAttachments()->object(0)->setPixelFormat( MTL::PixelFormat::PixelFormatBGRA8Unorm_sRGB );
+    pDesc->colorAttachments()->object(0)->setPixelFormat( MTL::PixelFormat::PixelFormatRGBA16Float );
     pDesc->setDepthAttachmentPixelFormat( MTL::PixelFormat::PixelFormatDepth16Unorm );
 
     MTL::VertexDescriptor* pVertexDesc = MTL::VertexDescriptor::alloc()->init();
@@ -304,7 +473,11 @@ void GameCoordinator::draw(CA::MetalDrawable* pDrawable, double targetTimestamp)
     assert(pDrawable);
     NS::AutoreleasePool* pPool = NS::AutoreleasePool::alloc()->init();
     
+    //dispatch_semaphore_wait(m_inFlightSemaphore, DISPATCH_TIME_FOREVER);
+    
     MTL::CommandBuffer* pCmd = _pCommandQueue->commandBuffer();
+    
+    //updateWorldState(false);
 
     _rotationAngle += 0.008f;
     if (_rotationAngle > 2 * M_PI)
@@ -328,11 +501,31 @@ void GameCoordinator::draw(CA::MetalDrawable* pDrawable, double targetTimestamp)
     pRenderPass->colorAttachments()->object(0)->setLoadAction(MTL::LoadActionClear);
     pRenderPass->colorAttachments()->object(0)->setClearColor(MTL::ClearColor::Make(0.1, 0.1, 0.1, 1.0));
     pRenderPass->colorAttachments()->object(0)->setStoreAction(MTL::StoreActionStore);
+    
+    //Renderer::drawSky( pRenderEncoder );
+    
+    if (!m_pDepthTexture)
+    {
+            MTL::TextureDescriptor* depthDesc = MTL::TextureDescriptor::alloc()->init();
+            depthDesc->setWidth(pDrawable->texture()->width());
+            depthDesc->setHeight(pDrawable->texture()->height());
+            depthDesc->setPixelFormat(MTL::PixelFormatRGBA16Float);
+            depthDesc->setStorageMode(MTL::StorageModePrivate);
+            depthDesc->setUsage(MTL::TextureUsageRenderTarget);
+            m_pDepthTexture = _pDevice->newTexture(depthDesc);
+            depthDesc->release();
+        }
+        
+        pRenderPass->depthAttachment()->setTexture(m_pDepthTexture);
+        pRenderPass->depthAttachment()->setLoadAction(MTL::LoadActionClear);
+        pRenderPass->depthAttachment()->setStoreAction(MTL::StoreActionDontCare);
+        pRenderPass->depthAttachment()->setClearDepth(1.0);
 
     MTL::RenderCommandEncoder* pRenderEnc = pCmd->renderCommandEncoder(pRenderPass);
     
     if (pRenderEnc && _pCubePipelineState && _pDepthState)
     {
+        //drawSky(pRenderEnc);
         pRenderEnc->setRenderPipelineState(_pCubePipelineState);
         pRenderEnc->setDepthStencilState(_pDepthState);
         pRenderEnc->setVertexBuffer(_pCubeVertexBuffer, 0, 0);
@@ -344,7 +537,10 @@ void GameCoordinator::draw(CA::MetalDrawable* pDrawable, double targetTimestamp)
                                           0);
     }
     pRenderEnc->endEncoding();
-    //pRenderEnc->release();
+//    pCmd->addCompletedHandler(MTL::HandlerFunction([this](MTL::CommandBuffer*)
+//    {
+//        dispatch_semaphore_signal(m_inFlightSemaphore);
+//    }));
     pCmd->presentDrawable(pDrawable);
     pCmd->commit();
 #ifdef CAPTURE

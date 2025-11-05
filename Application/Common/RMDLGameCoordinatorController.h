@@ -18,4 +18,12 @@
 
 - (void)updateCameraAspectRatio:(float)aspectRatio;
 
+- (void)loadLastHighScoreAfterSync:(nonnull NSNumber *)hasSyncd;
+
+- (void)saveHighScore;
+
+- (void)downloadCloudSavesBlocking:(BOOL)blocking;
+
+- (void)uploadCloudSavesBlocking:(BOOL)blocking;
+
 @end

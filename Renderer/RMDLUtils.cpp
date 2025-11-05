@@ -1,6 +1,6 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                        +       +          */
-/*      File: RMDLUtils.cpp            +++     +++            **/
+/*      File: RMDLUtils.cpp            +++     +++           **/
 /*                                        +       +          */
 /*      By: Laboitederemdal      **        +       +        **/
 /*                                       +           +       */
@@ -9,24 +9,6 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include "RMDLUtils.hpp"
-
-void *ft_memcpynok(void *dst, const void *src, size_t n)
-{
-    char *c_src;
-    char *c_dst;
-
-    c_src = (char *)src;
-    c_dst = (char *)dst;
-    if (dst != 0 || src != 0)
-    {
-        while (n)
-        {
-            *(c_dst++) = *(c_src++);
-            --n;
-        }
-    }
-    return (dst);
-}
 
 void *ft_memcpy(void *dst, const void *src, size_t n)
 {
@@ -49,7 +31,7 @@ void    *ft_memset(void *s, int c, size_t n)
 
     ptr = (unsigned char *)s;
     value = (unsigned char)c;
-    while (n --)
+    while (n--)
         *ptr++ = value;
     return (s);
 }
